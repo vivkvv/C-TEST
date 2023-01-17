@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="./static/libs/codemirror5/lib/codemirror.css">
+  <script src="./static/libs/codemirror5/lib/codemirror.js"></script>
+  <script src="./static/libs/codemirror5/mode/javascript/javascript.js"></script>
+  <script src="./static/libs/codemirror5/mode/clike/clike.js"></script>
+
+  <link rel="stylesheet" href="./static/css/types_deduction.css">
+</head>
+
+<body>
+  <script type="text/javascript">
+
+    // next implementation adds format function for string
+    if (!String.prototype.format) {
+      String.prototype.format = function () {
+        var args = arguments;
+        return this.replace(/{(\d+)}/g, function (match, number) {
+          return typeof args[number] != "undefined" ? args[number] : match;
+        });
+      };
+    }
+
+    var entityMap = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;',
+      '/': '&#x2F;',
+      '`': '&#x60;',
+      '=': '&#x3D;'
+    };
+
+    function escapeHtml(string) {
+      return String(string).replace(/[&<>"'`=\/]/g, function (s) {
+        return entityMap[s];
+      });
+    }
+
+    let codes = {
+      "boost":
+        '#include <iostream>\n\
+#include <boost/type_index.hpp>\n\
+\n\
+using std::cout;\n\
+using std::endl;\n\
+using boost::typeindex::type_id_with_cvr;\n\
+\n\
+{0}{\n\
+  cout << type_id_with_cvr<decltype(t)>().pretty_name() << endl;\n\
+}\n\
+\n\
+{1}\n\
+\n\
+int main()\n\
+{\n\
+  {2};\n\
+  return 0;\n\
+}\n\
+',
+      "linker":
+'#include <iostream>\n\
+\n\
+using std::cout;\n\
+using std::endl;\n\
+\n\
+{0};\n\
+\n\
+{1}\n\
+\n\
+int main()\n\
+{\n\
+  {2};\n\
+  return 0;\n\
+}\n\
+',
+      "compiler":
+        '#include <iostream>\n \
+\n\
+template <typename T> struct TD;\n\
+{0}{\n\
+  TD<T> tType;\n\
+  TD<t> tParam;\n\
+};\n\
+\n\
+{1}\n\
+\n\
+int main()\n\
+{\n\
+  {2};\n\
+  return 0;\n\
+}\n\
+'
+    };
+
+    class Declaration {
+      m_type;
+      m_variable;
+      m_value;
+      constructor(type, variable, value) {
+        this.m_type = type;
+        this.m_variable = variable;
+        this.m_value = value;
+      }
+    };
+
+    let declarations = [
+      new Declaration("int", "x", "42"),
+      new Declaration("const int & ", "cx", "x"),
+      new Declaration("int *", "px", "&x"),
+      new Declaration("const int *", "cpx", "&x"),
+      new Declaration("const int &", "z", "x"),
+      new Declaration("int * &", "pz", "px"),
+      new Declaration("const int * &", "cpz", "cpx"),
+      new Declaration("const int * const", "pw", "px")
+    ];
+
+    class Function {
+      m_details_name;
+      m_name;
+      m_html_declaration;
+      m_param_type;
+      constructor(details_name, name, param_type) {
+        this.m_details_name = details_name;
+        this.m_name = name;
+        this.m_param_type = param_type;
+        this.m_js_declaration = `template <typename T> void ${this.m_name}(${this.m_param_type} t)`;
+        this.m_html_declaration = escapeHtml(this.m_js_declaration);
+      }
+    };
+
+    let functions = [
+      new Function("details_foo", "foo", "T"),
+      new Function("details_bar", "bar", "T&"),
+      new Function("details_buz", "buz", "T*"),
+      new Function("details_bee", "bee", "T* const&")
+    ];
+
+  </script>
+
+  <div class="header">
+    <a href="#default" class="logo">Type deduction</a>
+    <div class="header-right">
+      <a class="active" href="#home">Login</a>
+      <a href="#contact">Contact</a>
+      <a href="#about">About</a>
+    </div>
+  </div>
+
+  <div style="padding-left:20px">
+
+    <div class="row">
+      <div class="column" id="declaration_column">
+        <div class="row" id="declarations_area">
+
+        </div>
+
+        <br><br><br>
+
+        <div class="row" id="checking_type_area">
+          <div>
+            <legend>CHECKING TYPE</legend>
+
+            <div>
+              <label class="block">
+                <input type="radio" id="boost" name="checking_type" value="boost" checked="true">Boost
+              </label>
+
+              <label class="block">
+                <input type="radio" id="linker" name="checking_type" value="linker">Linker error
+              </label>
+
+              <label class="block">
+                <input type="radio" id="compiler" name="checking_type" value="compiler">Compiler error
+              </label>
+
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <div class="column" id="details_column">
+      </div>
+
+      <div class="column">
+        <div class="text-centered">
+          <button class="runCodeBtn" onclick="runCode()">Run code</button>
+        </div>
+        <textarea id="cpp_source">
+#include <iostream>
+
+int main()
+{
+  return 0;
+}
+        </textarea>
+
+        <textarea id="compile_options" rows="1"
+          cols="1">g++ -std=c++20 -O2 -Wall -pedantic -pthread main.cpp && ./a.out</textarea>
+
+        <textarea id="compile_output"></textarea>
+      </div>
+    </div>
+
+
+  </div>
+
+  <script>
+    function runCode() {
+      var coliru_http = new XMLHttpRequest();
+      coliru_http.open("POST", "http://coliru.stacked-crooked.com/compile", true);
+
+      coliru_http.onload = () => {
+        if (coliru_http.readyState === 4 && coliru_http.status === 200) {
+          compile_output.setValue(coliru_http.response);
+        }
+      };
+
+      coliru_http.onerror = () => {
+        compile_output.setValue(coliru_http.response);
+      };
+
+      cpp_text = cpp_source_code_mirror.getValue();
+      coliru_data = { "cmd": "g++ main.cpp && ./a.out", "src": `${cpp_text}` };
+      coliru_http.send(JSON.stringify(coliru_data));
+    }
+  </script>
+
+  <script>
+    function goToCode(declaration, vars_declarations, function_call) {
+      key = document.querySelector('input[name="checking_type"]:checked').value;
+      cpp_source_code_mirror.setValue(codes[key].format(declaration, vars_declarations, function_call));
+      cpp_source_code_mirror.setSize("100%", "50%");
+    };
+
+    function checkCode(declaration, vars_declaration, func, input_element, decl) {
+      key = 'linker';
+      param = func.m_param_type.replace('T', input_element.value);
+
+      declaration += ";\n" + `void ${func.m_name}(${param}){ cout << "ok" << endl; }`;
+
+      function_call = `${input_element.function.m_name}(${decl})`;
+      cpp_source_code_mirror.setValue(codes[key].format(declaration, vars_declarations.join("\n"), function_call));
+      cpp_source_code_mirror.setSize("100%", "50%");
+    }
+
+  </script>
+
+  <script type="text/javascript">
+    declarations_area_element = document.getElementById("declarations_area");
+
+    var ol = document.createElement("ol");
+    ol_id = declarations_area_element.appendChild(ol);
+
+    let vars_declarations = [];
+    for (let key in declarations) {
+      let declaration = declarations[key];
+      let vr = `${declaration.m_type} ${declaration.m_variable} = ${declaration.m_value};`;
+      vars_declarations.push(vr);
+    }
+
+    for (vr in vars_declarations) {
+      var li = document.createElement("li");
+      li.innerHTML = vars_declarations[vr];
+      ol.appendChild(li);
+    }
+
+    details_column = document.getElementById('details_column');
+    for (let fnc in functions) {
+      var el = document.createElement("details");
+      el.id = fnc;
+      details_column.appendChild(el);
+
+      var summ = document.createElement("summary")
+      summ.innerHTML = functions[fnc].m_html_declaration;
+      el.appendChild(summ);
+    }
+
+    let indx = 0;
+    for (let k in functions) {
+      indx += 1;
+      details_id = document.getElementById(k);
+      var ol = document.createElement("ol");
+      ol_id = details_id.appendChild(ol);
+
+      let declaration = `${functions[k].m_html_declaration}`;
+
+      for (let key in declarations) {
+        indx += 1;
+        let vars_declaration_str = vars_declarations.join("\\n");
+        function_call = `${functions[k].m_name}(${declarations[key].m_variable})`;
+
+        type_lbl = '<label>T is</label>';
+        id_ie = indx;
+        ++indx;
+        answer_type_ie = `<input type="text" id="answer_type_id_${id_ie}" style="width: 100px;">`;
+        id_lbl = indx;
+        answer_type_lbl = `<input type="text" id="answer_type_lbl_${id_lbl}" style="width: 200px;" readonly>`;
+        check_img = '<img src="question-mark-5-16.png" alt="Answer result">';
+        ++indx;
+        id_check = indx;
+        check_btn = `<button class="check_answer_btn" style="width: 50px;" id="check_code_id_${id_check}">Check</button>`;
+        goto_code_btn = `<button class="goto_code_btn" style="width: 50px;" onclick="goToCode('${declaration}', '${vars_declaration_str}', '${function_call}')">Code</button></div>`;
+
+        var li = document.createElement("li");
+        li.innerHTML = `${function_call}; <div>${type_lbl} ${answer_type_ie} <div>${answer_type_lbl} ${check_img} ${check_btn} ${goto_code_btn} </div></div>`;
+
+        ol.appendChild(li);
+
+        let a_ie = document.getElementById(`answer_type_id_${id_ie}`);
+        let l_ie = document.getElementById(`answer_type_lbl_${id_lbl}`);
+        a_ie.function = functions[k];
+
+        let b_check = document.getElementById(`check_code_id_${id_check}`);
+        b_check.onclick = function () { checkCode(`${functions[k].m_js_declaration}`, vars_declarations, functions[k], a_ie, declarations[key].m_variable) };
+
+        a_ie.addEventListener('input', (e) => {
+          func = e.target.function;
+          current_value = e.target.value;
+          param = func.m_param_type.replace('T', current_value);
+          l_ie.value = `${func.m_name}<${e.target.value}>(${param})`;
+        });
+
+
+      }
+    }
+
+    cpp_source_code_mirror = CodeMirror.fromTextArea(document.getElementById("cpp_source"), {
+      mode: "text/x-c++src",
+      indentWithTabs: true,
+      smartIndent: true,
+      lineNumbers: true,
+      lineWrapping: true,
+      matchBrackets: true,
+      autofocus: true
+    });
+
+    compile_editor = CodeMirror.fromTextArea(document.getElementById("compile_options"), {
+      mode: "text/x-c++src",
+      indentWithTabs: true,
+      smartIndent: true,
+      lineNumbers: true,
+      lineWrapping: true,
+      matchBrackets: true,
+      autofocus: true,
+      readOnly: true
+    });
+
+    compile_editor.setSize("100%", "100px");
+
+    compile_output = CodeMirror.fromTextArea(document.getElementById("compile_output"), {
+      mode: "text/x-c++src",
+      indentWithTabs: false,
+      smartIndent: false,
+      lineNumbers: true,
+      lineWrapping: true,
+      matchBrackets: true,
+      autofocus: true,
+      readOnly: true
+    });
+
+
+  </script>
+
+
+</body>
+
+</html>
