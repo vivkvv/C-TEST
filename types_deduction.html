@@ -214,7 +214,7 @@ int main()
   <script>
     function runCode() {
       var coliru_http = new XMLHttpRequest();
-      coliru_http.open("POST", "http://coliru.stacked-crooked.com/compile", true);
+      coliru_http.open("POST", "https://coliru.stacked-crooked.com/compile", true);
 
       coliru_http.onload = () => {
         if (coliru_http.readyState === 4 && coliru_http.status === 200) {
