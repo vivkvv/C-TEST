@@ -114,7 +114,6 @@ int main()\n\
       new Declaration("const int & ", "cx", "x"),
       new Declaration("int *", "px", "&x"),
       new Declaration("const int *", "cpx", "&x"),
-      new Declaration("const int &", "z", "x"),
       new Declaration("int * &", "pz", "px"),
       new Declaration("const int * &", "cpz", "cpx"),
       new Declaration("const int * const", "pw", "px")
@@ -212,23 +211,28 @@ int main()
   </div>
 
   <script>
-    function runCode() {
+    function coliruAndUpdateResult(cpp_text, callback) {
       var coliru_http = new XMLHttpRequest();
       coliru_http.open("POST", "https://coliru.stacked-crooked.com/compile", true);
 
       coliru_http.onload = () => {
         if (coliru_http.readyState === 4 && coliru_http.status === 200) {
-          compile_output.setValue(coliru_http.response);
+          callback(coliru_http.response);
         }
       };
 
       coliru_http.onerror = () => {
-        compile_output.setValue(coliru_http.response);
+        callback(coliru_http.response);
       };
 
-      cpp_text = cpp_source_code_mirror.getValue();
       coliru_data = { "cmd": "g++ main.cpp && ./a.out", "src": `${cpp_text}` };
       coliru_http.send(JSON.stringify(coliru_data));
+    }
+
+    function runCode() {
+      coliruAndUpdateResult(cpp_source_code_mirror.getValue(), (response) => {
+        compile_output.setValue(response);
+      })
     }
   </script>
 
@@ -239,15 +243,19 @@ int main()
       cpp_source_code_mirror.setSize("100%", "50%");
     };
 
-    function checkCode(declaration, vars_declaration, func, input_element, decl) {
+    function checkCode(declaration, vars_declaration, func, input_element, decl, check_image) {
       key = 'linker';
       param = func.m_param_type.replace('T', input_element.value);
 
-      declaration += ";\n" + `void ${func.m_name}(${param}){ cout << "ok" << endl; }`;
+      declaration1 = declaration + ";\n" + `void ${func.m_name}(${param}){ cout << "ok"; }`;
 
       function_call = `${input_element.function.m_name}(${decl})`;
-      cpp_source_code_mirror.setValue(codes[key].format(declaration, vars_declarations.join("\n"), function_call));
-      cpp_source_code_mirror.setSize("100%", "50%");
+
+      cpp_text = codes[key].format(declaration1, vars_declarations.join("\n"), function_call);
+      coliruAndUpdateResult(cpp_text, (response) => {
+        check_image.src = (response == "ok") ? "verify-success.png" : "verify-wrong.png";
+      });
+
     }
 
   </script>
@@ -301,32 +309,25 @@ int main()
         ++indx;
         answer_type_ie = `<input type="text" id="answer_type_id_${id_ie}" style="width: 100px;">`;
         id_lbl = indx;
-        answer_type_lbl = `<input type="text" id="answer_type_lbl_${id_lbl}" style="width: 200px;" readonly>`;
-        check_img = '<img src="question-mark-5-16.png" alt="Answer result">';
+
+        check_img = `<img src="question-mark-5-16.png" alt="Answer result" id="check_img_${id_lbl}">`;
         ++indx;
         id_check = indx;
         check_btn = `<button class="check_answer_btn" style="width: 50px;" id="check_code_id_${id_check}">Check</button>`;
         goto_code_btn = `<button class="goto_code_btn" style="width: 50px;" onclick="goToCode('${declaration}', '${vars_declaration_str}', '${function_call}')">Code</button></div>`;
 
         var li = document.createElement("li");
-        li.innerHTML = `${function_call}; <div>${type_lbl} ${answer_type_ie} <div>${answer_type_lbl} ${check_img} ${check_btn} ${goto_code_btn} </div></div>`;
+        li.innerHTML = `${function_call}; <div>${type_lbl} ${answer_type_ie} ${check_img} ${check_btn} ${goto_code_btn} </div>`;
 
         ol.appendChild(li);
 
         let a_ie = document.getElementById(`answer_type_id_${id_ie}`);
-        let l_ie = document.getElementById(`answer_type_lbl_${id_lbl}`);
         a_ie.function = functions[k];
 
+        let check_image = document.getElementById(`check_img_${id_lbl}`);
+
         let b_check = document.getElementById(`check_code_id_${id_check}`);
-        b_check.onclick = function () { checkCode(`${functions[k].m_js_declaration}`, vars_declarations, functions[k], a_ie, declarations[key].m_variable) };
-
-        a_ie.addEventListener('input', (e) => {
-          func = e.target.function;
-          current_value = e.target.value;
-          param = func.m_param_type.replace('T', current_value);
-          l_ie.value = `${func.m_name}<${e.target.value}>(${param})`;
-        });
-
+        b_check.onclick = function () { checkCode(`${functions[k].m_js_declaration}`, vars_declarations, functions[k], a_ie, declarations[key].m_variable, check_image) };
 
       }
     }
