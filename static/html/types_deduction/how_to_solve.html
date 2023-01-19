@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="../../css/common.css">
+
+    <title>How to solve types deduction</title>
+</head>
+
+<body>
+
+    <div class="header">
+        <a href="#default" class="logo">Type deduction. How to solve</a>
+        <div class="header-right">
+            <a class="active" href="#home">Login</a>
+            <a href="#contact">Contact</a>
+            <a href="#about">About</a>
+        </div>
+    </div>
+
+    <ol>
+        <li>
+            <div style="font-size: 24px">template &lt;typename T&gt; void foo(T t);</div>
+            foo(expr);<br>
+            1. if type of expr is a reference, then this reference is ignored. if type of expr is a pointer, then do nothing.<br>
+            2. if after p.1 the rest is const/volatile, then ignore this cv. Take into account, it is needed to remove the most right cv only (and this cv has to be placed after */&).<br>
+        </li>
+        <li>
+            <div style="font-size: 24px">template &lt;typename T&gt; void foo(T& t);</div>
+        </li>
+        <li>
+            <div style="font-size: 24px">template &lt;typename T&gt; void foo(T* t);</div>
+        </li>       
+    </ol>
+
+</body>
+
+</html>
