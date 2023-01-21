@@ -22,16 +22,35 @@
     <ol>
         <li>
             <div style="font-size: 24px">template &lt;typename T&gt; void foo(T t);</div>
-            foo(expr);<br>
-            1. if type of expr is a reference, then this reference is ignored. if type of expr is a pointer, then do nothing.<br>
-            2. if after p.1 the rest is const/volatile, then ignore this cv. Take into account, it is needed to remove the most right cv only (and this cv has to be placed after */&).<br>
+            <div style="padding: 20px" foo(expr);>
+                1. If type of "expr" is a reference, then this reference is ignored. If type of "expr" is a pointer,
+                then do nothing.<br>
+                2. If after p.1 the rest is const/volatile, then ignore this cv. Take into account, it is needed to
+                remove the most right cv only (and this cv has to be placed after */&).<br>
+            </div>
         </li>
         <li>
             <div style="font-size: 24px">template &lt;typename T&gt; void foo(T& t);</div>
+            <div style="padding: 20px" foo(expr);>
+                foo(expr);<br>
+                1. If type of "expr" is a reference, then this reference is ignored. If type of "expr" is a pointer,
+                then do
+                nothing.<br>
+            </div>
         </li>
         <li>
             <div style="font-size: 24px">template &lt;typename T&gt; void foo(T* t);</div>
-        </li>       
+            <div style="padding: 20px" foo(expr);>
+                foo(expr)<br>
+                1. Compiler tries to check types. If "expr" does not contain "*", then it is impossible. In this case
+                will
+                be a compiler error.<br>
+                2. If "expr" ends with "&", then this "&" is ignored. If this reference contains cv as well, then cv
+                removes
+                with the reference too.<br>
+                3. Remove the most right "*" together with its cv qualifiers if any.<br>
+            </div>
+        </li>
     </ol>
 
 </body>
